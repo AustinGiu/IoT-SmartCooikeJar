@@ -15,10 +15,14 @@ Smart Cookie Jar is an IoT-based snack monitoring system designed to help users 
 ## Features
 - Set daily cooikes consumption amount
 - Auto lock when hitting the limitation
-- Feedback on the cooike consumption
+- Feedback on the cookie consumption
 - UI display
 
-## ⚠️ Data Privacy & Confidentiality Notice
+## Data processing
+- Flaks will be used as the backend server, it would get data from the ESP32 and send back the data analysis results.
+- The user interface or web pages will be rendered by Flask.
+- SQLite would be the database which stores all the cookie intake info.
 
+## ⚠️ Data Privacy & Confidentiality Notice
 This project may involve sensitive or confidential data (e.g., staff names, contact details, office locations). 
 🚫**Do not copy, share, or expose any real personal or organizational data in this repository**.
