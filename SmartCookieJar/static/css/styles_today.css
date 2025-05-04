@@ -1,0 +1,116 @@
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* Layout wrapper fills screen */
+.wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Push footer to bottom */
+.wrapper .container {
+    flex: 1;
+}
+
+body.today {
+    background-image: url('/static/images/background.jpg');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    font-family: Arial, sans-serif;
+    color: white;
+}
+
+/* Styling the main container */
+.container {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #ffffff;
+    /* White background for the container */
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    color: #333;
+    flex-grow: 1;
+}
+
+/* Heading styles */
+h1 {
+    color: #333;
+    /* White text color for headings */
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+h4 {
+    color: #333;
+    /* White text color for subheadings */
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+/* Paragraph and text */
+p {
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+#intro{
+    font-style: italic;
+}
+
+/* Styling the table */
+.table th,
+.table td {
+    text-align: center;
+    color: #333;
+    /* Darker text color for table content */
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: #f2f2f2;
+}
+
+.table th {
+    background-color: #2980b9;
+    /* Darker blue for table headers */
+    color: white;
+}
+
+.table td {
+    padding: 10px;
+}
+
+.center-button {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.footer {
+    text-align: center;
+    font-size: 1rem;
+}
+
+/* Status message styling */
+#status-message {
+    font-weight: bold;
+    /* Red color for emphasis */
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+}
