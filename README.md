@@ -23,6 +23,17 @@ Smart Cookie Jar is an IoT-based snack monitoring system designed to help users 
 - The user interface or web pages will be rendered by Flask.
 - SQLite would be the database which stores all the cookie intake info.
 
+## The Cookie Ingredient Table(the one used in this project)
+| Nutrient      | Per Cookie     |
+|---------------|----------------|
+| Energy        | 188 kcal       |
+| Protein       | 0.43 g         |
+| Fat           | 1.87 g         |
+| Carbohydrate  | 6.47 g         |
+| Sugar         | 3.5 g          |
+| Sodium        | 47 mg          |
+
+
 ## ⚠️ Data Privacy & Confidentiality Notice
 This project may involve sensitive or confidential data (e.g., staff names, contact details, office locations). 
 🚫**Do not copy, share, or expose any real personal or organizational data in this repository**.

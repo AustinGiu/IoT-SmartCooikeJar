@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Today's Consumption - Smart Cookie Jar</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles_today.css') }}">
+</head>
+
+<body class="today">
+  <div class="wrapper">
+    <div class="container">
+      <div>
+        <h1 class="mb-4 text-center">Smart Cookie Jar</h1>
+        <h2 class="mb-4 text-center">Today's Consumption</h2>
+        <p class="text-center" id="intro">Fancy some cookies?</p>
+      </div>
+
+      <!-- Current snack status section -->
+      <section class="mb-4">
+        <h4>Current Status</h4>
+        <p>Current Cookies' Weight: <span id="current-weight"></span> g</p>
+        <p>Consumed Pieces: <span id="pieces-consumed"></span></p>
+        <p>Daily Limit: <span id="daily-limit">5</span> pieces</p>
+        <p>You could eat <span id="remaining-allowance"></span> pieces more for today</p>
+        <p>Lid Lock: <span id="status-message" class="fw-bold"></span></p>
+      </section>
+
+      <!-- Snack consumption log table -->
+      <section>
+        <h4>Wanna know how much you have taken?</h4>
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Energy (KJ)</th>
+              <th>Protein(g)</th>
+              <th>Fat(g)</th>
+              <th>Carbohydrate(g)</th>
+              <th>Sugar(g)</th>
+              <th>Sodium(mg)</th>
+            </tr>
+          </thead>
+          <tbody id="log-table">
+            <!-- Snack log entries will be dynamically inserted here -->
+          </tbody>
+        </table>
+      </section>
+
+      <!--button to past data analysis part-->
+      <div class="center-button">
+        <a href="{{ url_for('html_routes.past_page') }}">
+          <button class="btn btn-primary">View Past Data</button>
+        </a>
+      </div>
+
+    </div>
+
+    <!-- Footer sticks to bottom -->
+    <footer class="footer mt-5">
+      <p>CITS5506 &copy; Group 9 IoT Project (2025 S1)</p>
+    </footer>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+</body>
+
+</html>
