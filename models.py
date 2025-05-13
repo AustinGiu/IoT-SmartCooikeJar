@@ -15,6 +15,7 @@ class SnackLog(db.Model):
     weight_after = db.Column(db.Float, nullable=False)
     number_intake = db.Column(db.Integer, nullable=False)
 
+# just put here for reference, might not be used
 def calculate_intake(weight_before, weight_after):
     weight_diff = weight_before - weight_after
     if weight_diff < 0:

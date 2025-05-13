@@ -16,6 +16,7 @@ db.init_app(app)
 
 
 # Register Blueprints
+
 app.register_blueprint(html_routes)
 app.register_blueprint(api_routes)
 
