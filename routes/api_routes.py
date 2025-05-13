@@ -1,10 +1,14 @@
 from datetime import datetime, date, timedelta
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request, current_app
 from models import db, SnackLog
 from collections import defaultdict
+import sqlite3
+import os
 
 api_routes = Blueprint('api_routes', __name__)
 
+
+# fetch the data for today's consumption page
 @api_routes.route('/api/today_status')
 def today_status():
     today_start = datetime.combine(date.today(), datetime.min.time())
@@ -24,6 +28,7 @@ def today_status():
     })
 
 
+# fetch the data for past data page
 @api_routes.route('/api/usage_summary', methods=['GET'])
 def usage_summary():
     logs = SnackLog.query.order_by(SnackLog.timestamp).all()
@@ -68,7 +73,7 @@ def usage_summary():
     })
 
 
-
+# fetch the data for creating the line chart
 @api_routes.route('/api/7_day_intake', methods=['GET'])
 def get_7_day_intake():
     # Get the current date
@@ -107,3 +112,91 @@ def get_7_day_intake():
         })
 
     return jsonify({'daily_intakes': result})
+
+
+# default settings
+# the standard weight for a cookie
+COOKIE_WEIGHT_GRAMS = 9.2
+DAILY_LIMIT = 5
+lock_status = "UNLOCK" 
+
+# get the path to database
+def get_db_path():
+    return os.path.join(current_app.instance_path, "snacklog.db")
+
+# Function to calculate the cookies fetched today
+def get_today_total_cookies():
+    today = datetime.now().date()
+    
+    # Open a connection to the database
+    with sqlite3.connect(get_db_path()) as conn:
+        c = conn.cursor()
+        
+        # Get the total number of cookies consumed today by summing up the number_intake values for today's entries
+        c.execute("""
+            SELECT SUM(number_intake) 
+            FROM snack_log 
+            WHERE DATE(timestamp) = ?
+        """, (today.isoformat(),))
+        
+        total_cookies = c.fetchone()[0]
+
+    return total_cookies if total_cookies is not None else 0
+
+# Route to get data from ESP32
+@api_routes.route('/upload_weight', methods=['POST'])
+def upload_weight():
+    global lock_status
+    data = request.json
+    weight_after = data.get('weight')
+
+    if weight_after is None:
+        return jsonify({"error": "Missing weight"}), 400
+
+    # Get the last row of data to retrieve the weight_before
+    last_entry = None
+    with sqlite3.connect(get_db_path()) as conn:
+        c = conn.cursor()
+        c.execute("SELECT weight FROM cookies ORDER BY timestamp DESC LIMIT 1")
+        last_entry = c.fetchone()
+
+    if last_entry:
+        weight_before = last_entry[0]
+    else:
+        weight_before = 0  # If no previous data, set weight_before to 0
+
+    # If weight_after is greater than weight_before, it's a refill, so set intake to 0
+    if weight_after > weight_before:
+        number_intake = 0
+    else:
+        # Calculate the cookie intake number
+        number_intake = int((weight_before - weight_after) / COOKIE_WEIGHT_GRAMS)
+
+    # Insert the new weight data into the database
+    now = datetime.now().isoformat()
+    with sqlite3.connect(get_db_path()) as conn:
+        c = conn.cursor()
+        c.execute("INSERT INTO cookies (weight, timestamp) VALUES (?, ?)", (weight_after, now))
+        conn.commit()
+
+    # Calculate the daily total cookies consumed
+    daily_total = get_today_total_cookies()
+
+    # Decide whether to change the lid status (lock or unlock)
+    if daily_total >= DAILY_LIMIT:
+        lock_status = "LOCK"
+    else:
+        lock_status = "UNLOCK"
+
+    return jsonify({
+        "status": "logged",
+        "cookie_intake": number_intake,
+        "daily_total": daily_total,
+        "lid_status": lock_status
+    })
+
+# Route to tell the ESP32 when to lock the lid
+# when the status is changed to Locked, ESP32 should control to lock the lid and turn the led into red
+@api_routes.route('/get_command', methods=['GET'])
+def get_command():
+    return jsonify({"lid_status": lock_status})
