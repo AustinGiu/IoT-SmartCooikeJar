@@ -157,7 +157,7 @@ def upload_weight():
     last_entry = None
     with sqlite3.connect(get_db_path()) as conn:
         c = conn.cursor()
-        c.execute("SELECT weight FROM cookies ORDER BY timestamp DESC LIMIT 1")
+        c.execute("SELECT weight_after FROM snack_log ORDER BY timestamp DESC LIMIT 1")
         last_entry = c.fetchone()
 
     if last_entry:
@@ -176,7 +176,10 @@ def upload_weight():
     now = datetime.now().isoformat()
     with sqlite3.connect(get_db_path()) as conn:
         c = conn.cursor()
-        c.execute("INSERT INTO cookies (weight, timestamp) VALUES (?, ?)", (weight_after, now))
+        c.execute("""
+    INSERT INTO snack_log (timestamp, weight_before, weight_after, number_intake)
+    VALUES (?, ?, ?, ?)
+    """, (now, weight_before, weight_after, number_intake))
         conn.commit()
 
     # Calculate the daily total cookies consumed
