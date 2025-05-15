@@ -148,7 +148,7 @@ def get_today_total_cookies():
 def upload_weight():
     global lock_status
     data = request.json
-    weight_after = data.get('weight')
+    weight_after = float(data.get('weight'))
 
     if weight_after is None:
         return jsonify({"error": "Missing weight"}), 400
