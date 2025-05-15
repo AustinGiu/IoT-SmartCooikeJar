@@ -65,6 +65,10 @@ p {
     font-style: italic;
 }
 
+#unlock-timer {
+    font-weight: bold;
+    color: orange;
+}
 /* Styling the table */
 .table th,
 .table td {

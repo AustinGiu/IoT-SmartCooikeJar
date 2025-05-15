@@ -12,17 +12,50 @@ function updateSnackStatus() {
             $('#current-weight').text(weight.toFixed(1));
             $('#pieces-consumed').text(intake);
             $('#remaining-allowance').text(remaining);
+
             // the lid lock status
             if (remaining === 0) {
                 $('#status-message')
                     .text('Locked')
                     .css('color', 'red');
+
+                // Calculate the time left until midnight
+                const now = new Date();
+                const midnight = new Date();
+                midnight.setHours(24, 0, 0, 0); // Today at 24:00:00 = tomorrow at 0:00:00
+
+                const updateCountdown = () => {
+                    const current = new Date();
+                    const diff = midnight - current;
+
+                    if (diff > 0) {
+                        const hours = Math.floor(diff / (1000 * 60 * 60));
+                        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                        $('#unlock-timer').text(`${hours}h ${minutes}m ${seconds}s remaining to unlock`);
+                    } else {
+                        $('#unlock-timer').text('Lid should now be unlocked!');
+                        clearInterval(window.timerInterval);
+                    }
+                };
+
+                updateCountdown(); // Initial call
+                clearInterval(window.timerInterval); // Clear existing timer if any
+                window.timerInterval = setInterval(updateCountdown, 1000); // Set new interval
             } else {
                 $('#status-message')
                     .text('Open')
                     .css('color', 'green');
+                $('#unlock-timer').text('');
+                clearInterval(window.timerInterval); // Stop timer if lid is open
             }
 
+            // Check for refill need
+            if (weight < 150) {
+                $('#refill').text('Yes').css('color', 'red');
+            } else {
+                $('#refill').text('No').css('color', 'green');
+            }
 
             // Nutrition data per cookie (could be changed into other brands of cookies)
             const nutritionPerCookie = {
