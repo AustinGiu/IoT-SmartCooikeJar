@@ -214,7 +214,7 @@ def upload_weight():
 
     # Format lock_until for display
     formatted_lock_until = (
-        lock_until.strftime("%y/%-m/%d\n%-I:%M%p").lower()
+        lock_until.strftime("%d/%m/%y\n%-I:%M%p").lower()
         if lock_until else None
     )
 
@@ -247,24 +247,21 @@ def get_command():
         lock_status = "LOCK"
         reason = "punishment"
         formatted_lock_until = (
-        lock_until.strftime("%y/%-m/%d\n%-I:%M%p").lower()
-        if lock_until else None
-    )
+            lock_until.strftime("%-d/%-m/%y\n%-I:%M%p").lower()
+            if lock_until else None
+        )
     elif get_today_total_cookies() == DAILY_LIMIT:
         lock_status = "LOCK"
         reason = "daily_limit"
         formatted_lock_until = (
-        lock_until.strftime("%y/%-m/%d\n%-I:%M%p").lower()
-        if lock_until else None
-    )
+            lock_until.strftime("%-d/%-m/%y\n%-I:%M%p").lower()
+            if lock_until else None
+        )
     else:
         lock_status = "UNLOCK"
         reason = None
         lock_until = None  # clear punishment if expired
         formatted_lock_until = None
-
-    # Format lock_until as "YY/M/DD\nH:MMam/pm"
-
 
     return jsonify({
         "lid_status": lock_status,
