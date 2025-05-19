@@ -212,6 +212,12 @@ def upload_weight():
     else:
         lock_status = "UNLOCK"
 
+    # Format lock_until for display
+    formatted_lock_until = (
+        lock_until.strftime("%y/%-m/%d\n%-I:%M%p").lower()
+        if lock_until else None
+    )
+
     # Calculate how many cookies are left in the jar
     number_left = int(weight_after / COOKIE_WEIGHT_GRAMS)
 
@@ -222,7 +228,7 @@ def upload_weight():
         "daily_total": daily_total,
         "lid_status": lock_status,
         "cookies_left": number_left,
-        "lock_until": lock_until.isoformat() if lock_until else None
+        "lock_until": formatted_lock_until
     })
 
 # Route to tell the ESP32 when to lock the lid
@@ -233,10 +239,9 @@ def get_command():
 
     now = datetime.now()
 
-    # Calculate cookies left in container
-    latest_log = SnackLog.query.order_by(SnackLog.timestamp.desc()).first()
-    current_weight = latest_log.weight_after if latest_log else 0
-    cookies_in_container = int(current_weight // COOKIE_WEIGHT_GRAMS)
+    # Calculate daily remaining allowance
+    today_total = get_today_total_cookies()
+    cookies_remaining_today = max(DAILY_LIMIT - today_total, 0)
 
     if lock_until and now < lock_until:
         lock_status = "LOCK"
@@ -265,6 +270,6 @@ def get_command():
         "lid_status": lock_status,
         "reason": reason,
         "lock_until": formatted_lock_until,
-        "cookies_in_container": cookies_in_container
+        "cookies_remaining_today": cookies_remaining_today
     })
 
