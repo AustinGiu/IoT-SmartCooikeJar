@@ -1,4 +1,5 @@
 from datetime import datetime, date, timedelta
+from math import ceil
 from flask import Blueprint, jsonify, request, current_app
 from models import db, SnackLog
 from collections import defaultdict
@@ -7,10 +8,22 @@ import os
 
 api_routes = Blueprint('api_routes', __name__)
 
+# default settings
+# the standard weight for a cookie
+COOKIE_WEIGHT_GRAMS = 9.2
+# The daily limit for cookies' intake
+DAILY_LIMIT = 5
+# The container lid status
+lock_status = "UNLOCK" 
+# Lid lock time
+lock_until = None
 
 # fetch the data for today's consumption page
 @api_routes.route('/api/today_status')
 def today_status():
+    global lock_until
+
+    now = datetime.now()
     today_start = datetime.combine(date.today(), datetime.min.time())
 
     # Total number of cookies consumed today
@@ -22,11 +35,16 @@ def today_status():
     latest_log = SnackLog.query.order_by(SnackLog.timestamp.desc()).first()
     latest_weight = latest_log.weight_after if latest_log else 0
 
+    # Determine if locked
+    is_locked = lock_until and now < lock_until
+    lock_status = "LOCK" if is_locked else "UNLOCK"
+
     return jsonify({
         'latest_weight': latest_weight,
-        'today_total_intake': total_intake
+        'today_total_intake': total_intake,
+        'lock_status': lock_status,
+        'lock_until': lock_until.isoformat() if lock_until else None
     })
-
 
 # fetch the data for past data page
 @api_routes.route('/api/usage_summary', methods=['GET'])
@@ -114,12 +132,6 @@ def get_7_day_intake():
     return jsonify({'daily_intakes': result})
 
 
-# default settings
-# the standard weight for a cookie
-COOKIE_WEIGHT_GRAMS = 9.2
-DAILY_LIMIT = 5
-lock_status = "UNLOCK" 
-
 # get the path to database
 def get_db_path():
     return os.path.join(current_app.instance_path, "snacklog.db")
@@ -146,7 +158,7 @@ def get_today_total_cookies():
 # Route to get data from ESP32
 @api_routes.route('/upload_weight', methods=['POST'])
 def upload_weight():
-    global lock_status
+    global lock_status, lock_until
     data = request.json
     weight_after = float(data.get('weight'))
 
@@ -160,6 +172,7 @@ def upload_weight():
         c.execute("SELECT weight_after FROM snack_log ORDER BY timestamp DESC LIMIT 1")
         last_entry = c.fetchone()
 
+    # Trying to fetch the data from last row. If not, then set the weight_before as 0.
     if last_entry:
         weight_before = last_entry[0]
     else:
@@ -185,21 +198,55 @@ def upload_weight():
     # Calculate the daily total cookies consumed
     daily_total = get_today_total_cookies()
 
-    # Decide whether to change the lid status (lock or unlock)
-    if daily_total >= DAILY_LIMIT:
+    # Calculate and apply punishment lock
+    if daily_total > DAILY_LIMIT:
+        extra = daily_total - DAILY_LIMIT
+        penalty_days = ceil(extra / DAILY_LIMIT)
+        lock_until = datetime.now() + timedelta(days=penalty_days)
+
+    # Final lid status decision
+    if lock_until and datetime.now() < lock_until:
+        lock_status = "LOCK"
+    elif daily_total == DAILY_LIMIT:
         lock_status = "LOCK"
     else:
         lock_status = "UNLOCK"
 
+    # Calculate how many cookies are left in the jar
+    number_left = int(weight_after / COOKIE_WEIGHT_GRAMS)
+
     return jsonify({
+        #showing the data's beening received
         "status": "logged",
         "cookie_intake": number_intake,
         "daily_total": daily_total,
-        "lid_status": lock_status
+        "lid_status": lock_status,
+        "cookies_left": number_left,
+        "lock_until": lock_until.isoformat() if lock_until else None
     })
 
 # Route to tell the ESP32 when to lock the lid
 # when the status is changed to Locked, ESP32 should control to lock the lid and turn the led into red
 @api_routes.route('/get_command', methods=['GET'])
 def get_command():
-    return jsonify({"lid_status": lock_status})
+    global lock_status, lock_until
+
+    now = datetime.now()
+
+    if lock_until and now < lock_until:
+        lock_status = "LOCK"
+        reason = "punishment"
+    elif get_today_total_cookies() == DAILY_LIMIT:
+        lock_status = "LOCK"
+        reason = "daily_limit"
+    else:
+        lock_status = "UNLOCK"
+        reason = None
+        lock_until = None  # clear punishment if expired
+
+    return jsonify({
+        "lid_status": lock_status,
+        "reason": reason,
+        "lock_until": lock_until.isoformat() if lock_until else None
+    })
+

@@ -6,27 +6,25 @@ function updateSnackStatus() {
             const weight = data.latest_weight || 0;
             const intake = data.today_total_intake || 0;
             const dailyLimit = 5;
-            const remaining = Math.max(dailyLimit - intake, 0); // Avoid negative numbers
+            const remaining = Math.max(dailyLimit - intake, 0);
 
-            // Update the page elements with the fetched data
             $('#current-weight').text(weight.toFixed(1));
             $('#pieces-consumed').text(intake);
             $('#remaining-allowance').text(remaining);
 
-            // the lid lock status
-            if (remaining === 0) {
+            const lockStatus = data.lock_status;
+            const lockUntil = data.lock_until ? new Date(data.lock_until) : null;
+
+            // Handle locking status display
+            if (lockStatus === "LOCK") {
                 $('#status-message')
                     .text('Locked')
                     .css('color', 'red');
 
-                // Calculate the time left until midnight
-                const now = new Date();
-                const midnight = new Date();
-                midnight.setHours(24, 0, 0, 0); // Today at 24:00:00 = tomorrow at 0:00:00
-
                 const updateCountdown = () => {
                     const current = new Date();
-                    const diff = midnight - current;
+                    const target = lockUntil || new Date(current.setHours(24, 0, 0, 0)); // punishment or midnight
+                    const diff = target - new Date();
 
                     if (diff > 0) {
                         const hours = Math.floor(diff / (1000 * 60 * 60));
@@ -39,25 +37,26 @@ function updateSnackStatus() {
                     }
                 };
 
-                updateCountdown(); // Initial call
-                clearInterval(window.timerInterval); // Clear existing timer if any
-                window.timerInterval = setInterval(updateCountdown, 1000); // Set new interval
+                updateCountdown(); // Call once
+                clearInterval(window.timerInterval);
+                window.timerInterval = setInterval(updateCountdown, 1000);
+
             } else {
                 $('#status-message')
                     .text('Open')
                     .css('color', 'green');
                 $('#unlock-timer').text('');
-                clearInterval(window.timerInterval); // Stop timer if lid is open
+                clearInterval(window.timerInterval);
             }
 
-            // Check for refill need
+            // Refill check
             if (weight < 150) {
                 $('#refill').text('Yes').css('color', 'red');
             } else {
                 $('#refill').text('No').css('color', 'green');
             }
 
-            // Nutrition data per cookie (could be changed into other brands of cookies)
+            // Nutrition per cookie
             const nutritionPerCookie = {
                 energy: 188,
                 protein: 0.43,
@@ -67,7 +66,6 @@ function updateSnackStatus() {
                 sodium: 47
             };
 
-            // Calculate total nutrition
             const totalNutrition = {
                 energy: nutritionPerCookie.energy * intake,
                 protein: nutritionPerCookie.protein * intake,
@@ -77,9 +75,8 @@ function updateSnackStatus() {
                 sodium: nutritionPerCookie.sodium * intake
             };
 
-            // Update nutrition table
             const tableBody = $('#log-table');
-            tableBody.empty(); // Clear previous row
+            tableBody.empty();
 
             const row = `
                 <tr>
@@ -93,15 +90,12 @@ function updateSnackStatus() {
             `;
 
             tableBody.append(row);
-
         },
-
         error: function (error) {
             console.error('Failed to fetch snack status:', error);
         }
     });
 }
-
 
 // Run on page load
 $(document).ready(function () {
