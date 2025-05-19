@@ -183,7 +183,7 @@ def upload_weight():
         number_intake = 0
     else:
         # Calculate the cookie intake number
-        number_intake = int((weight_before - weight_after) / COOKIE_WEIGHT_GRAMS)
+        number_intake = round((weight_before - weight_after) / COOKIE_WEIGHT_GRAMS)
 
     # Insert the new weight data into the database
     now = datetime.now().isoformat()
