@@ -37,7 +37,7 @@ url address: https://iot-smartcooikejar.onrender.com
 | Sodium        | 47 mg          |
 
 ## Why not letting users to decide the snack and daily limit
-The users should have access to choose the snack type and daily limit. However we didnot implement this part in our design. Because of we choose one type of cookie from the market as the defalut snack type for demo use. As for the users' access for daily limit, if the users could set the limit as they wish, this project would loss the meaning of snack monitor. How the users could eat less if they are allowed to change their mind everytime they want?
+The users should have access to choose the snack type and daily limit. However we did not implement this part in our design. Because we choose one type of cookie from the market as the defalut snack type for demo use. As for the users' access for daily limit, if the users could set the limit as they wish, this project would loss the meaning of snack monitor. How the users could eat less if they are allowed to change their mind everytime they want?
 
 ## ⚠️ Data Privacy & Confidentiality Notice
 This project may involve sensitive or confidential data (e.g., staff names, contact details, office locations). 
