@@ -198,6 +198,8 @@ def upload_weight():
     # Calculate the daily total cookies consumed
     daily_total = get_today_total_cookies()
 
+    cookies_remaining_today = max(DAILY_LIMIT - daily_total, 0)
+
     # Calculate and apply punishment lock
     if daily_total > DAILY_LIMIT:
         extra = daily_total - DAILY_LIMIT
@@ -228,7 +230,8 @@ def upload_weight():
         "daily_total": daily_total,
         "lid_status": lock_status,
         "cookies_left": number_left,
-        "lock_until": formatted_lock_until
+        "lock_until": formatted_lock_until,
+        "cookies_remaining_today": cookies_remaining_today
     })
 
 # Route to tell the ESP32 when to lock the lid
