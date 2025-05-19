@@ -233,20 +233,38 @@ def get_command():
 
     now = datetime.now()
 
+    # Calculate cookies left in container
+    latest_log = SnackLog.query.order_by(SnackLog.timestamp.desc()).first()
+    current_weight = latest_log.weight_after if latest_log else 0
+    cookies_in_container = int(current_weight // COOKIE_WEIGHT_GRAMS)
+
     if lock_until and now < lock_until:
         lock_status = "LOCK"
         reason = "punishment"
+        formatted_lock_until = (
+        lock_until.strftime("%y/%-m/%d\n%-I:%M%p").lower()
+        if lock_until else None
+    )
     elif get_today_total_cookies() == DAILY_LIMIT:
         lock_status = "LOCK"
         reason = "daily_limit"
+        formatted_lock_until = (
+        lock_until.strftime("%y/%-m/%d\n%-I:%M%p").lower()
+        if lock_until else None
+    )
     else:
         lock_status = "UNLOCK"
         reason = None
         lock_until = None  # clear punishment if expired
+        formatted_lock_until = None
+
+    # Format lock_until as "YY/M/DD\nH:MMam/pm"
+
 
     return jsonify({
         "lid_status": lock_status,
         "reason": reason,
-        "lock_until": lock_until.isoformat() if lock_until else None
+        "lock_until": formatted_lock_until,
+        "cookies_in_container": cookies_in_container
     })
 
