@@ -181,9 +181,11 @@ def upload_weight():
         lock_until = None
         lock_status = "UNLOCK"
 
+    # recieve data from esp32
     data = request.json
     weight_after = float(data.get('weight'))
 
+    # handling error
     if weight_after is None:
         return jsonify({"error": "Missing weight"}), 400
 
@@ -208,13 +210,15 @@ def upload_weight():
         number_intake = round((weight_before - weight_after) / COOKIE_WEIGHT_GRAMS)
 
     # Insert the new weight data into the database
-    now = datetime.now().isoformat()
+    now = datetime.now()
+    iso_now = now.isoformat()
+
     with sqlite3.connect(get_db_path()) as conn:
         c = conn.cursor()
         c.execute("""
     INSERT INTO snack_log (timestamp, weight_before, weight_after, number_intake)
     VALUES (?, ?, ?, ?)
-    """, (now, weight_before, weight_after, number_intake))
+    """, (iso_now, weight_before, weight_after, number_intake))
         conn.commit()
 
     # Calculate the daily total cookies consumed
@@ -250,7 +254,7 @@ def upload_weight():
     )
 
     # Calculate how many cookies are left in the jar
-    number_left = int(weight_after / COOKIE_WEIGHT_GRAMS)
+    number_left = round(weight_after / COOKIE_WEIGHT_GRAMS)
 
     return jsonify({
         #showing the data's beening received
@@ -283,22 +287,19 @@ def get_command():
     if lock_until and now < lock_until:
         lock_status = "LOCK"
         reason = "punishment"
-        formatted_lock_until = (
-            lock_until.strftime("%-d/%-m/%y\n%-I:%M%p").lower()
-            if lock_until else None
-        )
+
     elif get_today_total_cookies() == DAILY_LIMIT:
         lock_status = "LOCK"
         reason = "daily_limit"
-        formatted_lock_until = (
-            lock_until.strftime("%-d/%-m/%y\n%-I:%M%p").lower()
-            if lock_until else None
-        )
+
     else:
         lock_status = "UNLOCK"
         reason = None
-        lock_until = None  # clear punishment if expired
-        formatted_lock_until = None
+
+    formatted_lock_until = (
+        lock_until.strftime("%d/%m/%y\n%-I:%M%p").lower()
+        if lock_until else None
+    )
 
     return jsonify({
         "lid_status": lock_status,
@@ -306,4 +307,3 @@ def get_command():
         "lock_until": formatted_lock_until,
         "cookies_remaining_today": cookies_remaining_today
     })
-
