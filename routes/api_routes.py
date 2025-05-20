@@ -18,31 +18,69 @@ lock_status = "UNLOCK"
 # Lid lock time
 lock_until = None
 
+# get the path to database
+def get_db_path():
+    return os.path.join(current_app.instance_path, "snacklog.db")
+
+# Function to calculate the cookies fetched today
+def get_today_total_cookies():
+    today = datetime.now().date()
+    
+    # Open a connection to the database
+    with sqlite3.connect(get_db_path()) as conn:
+        c = conn.cursor()
+        
+        # Get the total number of cookies consumed today by summing up the number_intake values for today's entries
+        c.execute("""
+            SELECT SUM(number_intake) 
+            FROM snack_log 
+            WHERE DATE(timestamp) = ?
+        """, (today.isoformat(),))
+        
+        total_cookies = c.fetchone()[0]
+
+    return total_cookies if total_cookies is not None else 0
+
 # fetch the data for today's consumption page
 @api_routes.route('/api/today_status')
 def today_status():
-    global lock_until
+    # fetching the global data.
+    global lock_until, lock_status
 
     now = datetime.now()
-    today_start = datetime.combine(date.today(), datetime.min.time())
+
+    # Checking: clear lock if expired
+    if lock_until and now >= lock_until:
+        lock_until = None
+        lock_status = "UNLOCK"
 
     # Total number of cookies consumed today
-    total_intake = db.session.query(db.func.sum(SnackLog.number_intake)) \
-                             .filter(SnackLog.timestamp >= today_start) \
-                             .scalar() or 0
+    total_intake = get_today_total_cookies()
 
     # Latest weight after snack event
     latest_log = SnackLog.query.order_by(SnackLog.timestamp.desc()).first()
     latest_weight = latest_log.weight_after if latest_log else 0
 
-    # Determine if locked
-    is_locked = lock_until and now < lock_until
-    lock_status = "LOCK" if is_locked else "UNLOCK"
+    # Lock if punishment still active
+    if lock_until and now < lock_until:
+        lock_status = "LOCK"
+    # Lock if daily limit reached
+    elif total_intake >= DAILY_LIMIT:
+        lock_status = "LOCK"
+    else:
+        lock_status = "UNLOCK"   
+
+    # Sanity check to detect inconsistency
+    if (lock_until and now < lock_until and total_intake < DAILY_LIMIT) or \
+       (not lock_until and total_intake >= DAILY_LIMIT and lock_status == "UNLOCK"):
+        # Log or report bug here
+        print("BUG: Inconsistent lock state detected")
 
     return jsonify({
         'latest_weight': latest_weight,
         'today_total_intake': total_intake,
         'lock_status': lock_status,
+        # the format needs to change
         'lock_until': lock_until.isoformat() if lock_until else None
     })
 
@@ -132,33 +170,17 @@ def get_7_day_intake():
     return jsonify({'daily_intakes': result})
 
 
-# get the path to database
-def get_db_path():
-    return os.path.join(current_app.instance_path, "snacklog.db")
-
-# Function to calculate the cookies fetched today
-def get_today_total_cookies():
-    today = datetime.now().date()
-    
-    # Open a connection to the database
-    with sqlite3.connect(get_db_path()) as conn:
-        c = conn.cursor()
-        
-        # Get the total number of cookies consumed today by summing up the number_intake values for today's entries
-        c.execute("""
-            SELECT SUM(number_intake) 
-            FROM snack_log 
-            WHERE DATE(timestamp) = ?
-        """, (today.isoformat(),))
-        
-        total_cookies = c.fetchone()[0]
-
-    return total_cookies if total_cookies is not None else 0
-
 # Route to get data from ESP32
 @api_routes.route('/upload_weight', methods=['POST'])
 def upload_weight():
     global lock_status, lock_until
+    now = datetime.now()
+
+    # Checking: clear lock if expired
+    if lock_until and now >= lock_until:
+        lock_until = None
+        lock_status = "UNLOCK"
+
     data = request.json
     weight_after = float(data.get('weight'))
 
@@ -201,18 +223,25 @@ def upload_weight():
     cookies_remaining_today = max(DAILY_LIMIT - daily_total, 0)
 
     # Calculate and apply punishment lock
+    # Overeating:
     if daily_total > DAILY_LIMIT:
+        lock_status = "LOCK"
+        # apply punishment
         extra = daily_total - DAILY_LIMIT
         penalty_days = ceil(extra / DAILY_LIMIT)
-        lock_until = datetime.now() + timedelta(days=penalty_days)
+        lock_until = now + timedelta(days=penalty_days)
 
-    # Final lid status decision
-    if lock_until and datetime.now() < lock_until:
-        lock_status = "LOCK"
+    # hit the limit
     elif daily_total == DAILY_LIMIT:
         lock_status = "LOCK"
-    else:
+        # lock and set lock_until to midnight of next day
+        tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        lock_until = tomorrow
+
+    else:  # daily_total < DAILY_LIMIT
+        # open for user to take more
         lock_status = "UNLOCK"
+        lock_until = None
 
     # Format lock_until for display
     formatted_lock_until = (
@@ -241,6 +270,11 @@ def get_command():
     global lock_status, lock_until
 
     now = datetime.now()
+
+    # Checking: clear lock if expired
+    if lock_until and now >= lock_until:
+        lock_until = None
+        lock_status = "UNLOCK"
 
     # Calculate daily remaining allowance
     today_total = get_today_total_cookies()
