@@ -1,5 +1,7 @@
 # IoT-SmartCookieJar
 This is for the use of CITS5506 IoT project
+![image](https://github.com/user-attachments/assets/76f5ca2f-8d80-4148-9f91-2d899aff4a9a)
+
 
 ## Group Members
 This project is conducted in a group of 3.
