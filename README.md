@@ -43,6 +43,18 @@ The users should have access to choose the snack type and daily limit. However w
 It's recommended to create a container to store the electrical components and cookies such as the one that was developed for the project for the best experience.
 
 ### Wiring
+The hardware used for this project was:
+- FireBeetle 2 ESP32-E IoT Microcontroller
+- Lever Switch.
+- 9g Micro Servo - FS90
+- HX711 Amplifier
+- 3kg beam loadcell.
+- Blue OLED I2C Display
+- 3x LEDs (blue, green, and red).
+- 3x 300 ohm resistors.
+- 1x 3kohm resistor.
+
+Follow the schematic diagram below to wire the connections.
 ![schematic](https://github.com/user-attachments/assets/b3e8ed7c-5d86-47b3-ab6b-14a944964ee3)
 
 ### Arduino Libraries
