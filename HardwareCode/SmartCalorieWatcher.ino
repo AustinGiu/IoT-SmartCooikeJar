@@ -1,12 +1,17 @@
 /*
-  Rui Santos
-  Complete project details at https://RandomNerdTutorials.com/esp32-load-cell-hx711/
-  
-  Permission is hereby granted, free of charge, to any person obtaining a copy
-  of this software and associated documentation files.
-  
-  The above copyright notice and this permission notice shall be included in all
-  copies or substantial portions of the Software.
+ * UWA, Computer Science and Software Engineering
+ * CITS5506 Internet of Things
+ * 
+ * Joshua Noble
+ * 
+ * This code was developed for the Smart Calorie Watcher.
+ * It contains the code required to read the sensors, control the 
+ * actuators and communicate with the deployed flask server.
+ * 
+ * Sensors: Lever Switch and Load Cell.
+ * Actuators: OLED, LEDs and Servo.
+ * 
+ * May 2025
 */
 
 // Library HX711 by Bogdan Necula: https://github.com/bogde/HX711
@@ -20,45 +25,38 @@
 #include <Adafruit_SSD1306.h>
 #include <WiFi.h>
 #include <ESP32Servo.h>
-
-//for connecting to cloud service (flask server in this case)
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <Arduino_JSON.h>
 
-// HX711 circuit wiring
-const int LOADCELL_DOUT_PIN = 16;
-const int LOADCELL_SCK_PIN = 4;
-
-HX711 scale;
-int cookiesLeft = 3; //to get from server
-
 // this value is obtained by calibrating the scale with known weights;
 #define CALIBRATION_FACTOR -706.86251
 
-//OLED Display
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+// HX711 circuit wiring
+const int LOADCELL_DOUT_PIN = 16;
+const int LOADCELL_SCK_PIN = 4;
+HX711 scale;
+
+//OLED Display size in pixels
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-//Connect to local WiFi
-const char *ssid = "Nokia C01 Plus";
-const char *password = "HelloWorld!";
-
-//API Domain name with URL path
-const char* statusURL = "https://iot-smartcooikejar.onrender.com/get_command";
-const char* uploadWeightURL = "https://iot-smartcooikejar.onrender.com/upload_weight";
-
-//LEDs LED
+//LED pins
 #define LED_RED 12
 #define LED_GREEN 13
 #define LED_BLUE 14
 
+//switch
 #define SWITCH_PIN 17
 Pushbutton lever(SWITCH_PIN);
+
+//Servo
+#define SERVO_PIN 15
+Servo servo;
 
 //status of the container
 enum Status{
@@ -69,53 +67,98 @@ enum Status{
 
 //values for servo in degrees
 enum Lock {
-  LOCK = 90,
-  UNLOCK = 0
+  LOCK = 0,
+  UNLOCK = 90
 };
 
-//Servo
-#define SERVO_PIN 15
-Servo servo;
-
+//container status
 enum Status g_status;
 enum Status g_oldStat = UNDERLIMIT;
 enum Lock g_lock = UNLOCK;
 
-//retrieves the container status from a JSON string.
-//@param response is the JSON string.
-Status getValueFromJSON(String response, String key) {
-  //convert response to JSON
-  JSONVar myObject = JSON.parse(response);
+//global variables to obtain from the server
+int cookiesLeft = -1; 
+String timer = "";
 
-  // JSON.typeof(jsonVar) can be used to get the type of the var
-  if (JSON.typeof(myObject) == "undefined") {
-    Serial.println("Parsing input failed!");
-    return WAIT;
-  }
+//Connect to local WiFi
+const char *ssid = "Nokia C01 Plus";
+const char *password = "HelloWorld!";
 
-  // myObject.keys() can be used to get an array of all the keys in the object
-  //JSONVar keys = myObject.keys();
-  JSONVar value = myObject[key];
-  Serial.println(value);
+//API Domain name with URL path
+const char* statusURL = "https://iot-smartcooikejar.onrender.com/get_command";
+const char* uploadWeightURL = "https://iot-smartcooikejar.onrender.com/upload_weight";
 
-  Serial.print(JSON.stringify(value));
-  Serial.print("=");
-  Serial.println("UNLOCK?");
-  Serial.println(JSON.stringify(value) == "\"UNLOCK\"");
+/*
+ * parse JSON response and update container status, 
+ * number of cookies left to take and the lock duration.
+ * @param json is the json to parse.
+ */
+void updateContainerFromJSON(JSONVar json){
+  String stat = getValueFromJSON(json, "lid_status");
+  String left = getValueFromJSON(json, "cookies_remaining_today");
+  String lockDur = getValueFromJSON(json, "lock_until");
 
-  if(JSON.stringify(value) == "\"UNLOCK\""){
+  //update global variables
+  cookiesLeft = left.toInt();
+  timer = lockDur;
+
+  //update status
+  enum Status newStatus = getStatusFromString(stat);
+  setStatus(newStatus);
+}
+
+/*
+ * Converts status string to a status enum.
+ * Assumes stat will either be "UNLOCK" or "LOCK".
+ * @stat is the status string to convert.
+ * @return the status enum corresponding to the string.
+ */
+Status getStatusFromString(String stat) {
+  if(stat == "\"UNLOCK\""){
     return UNDERLIMIT;
   } else {
     return OVERLIMIT;
   }
 }
 
-//https POST Request
-//This request posts the weight of the containers contents.
+/*
+ * Converts https response containing JSON to a JSON object.
+ * @param response https response containing JSON
+ * @return JSONVar object.
+ */
+JSONVar responseToJSON(String response){
+  return JSON.parse(response);
+}
+
+/*
+ * Retrieves value specified from the JSON object.
+ * Assumes 'key' param will be a key that exists in the JSON object.
+ * @param key of the value to obtain.
+ * @param myObject JSON object to obtain value from.
+ * @return the value specified as a string.
+ */
+String getValueFromJSON(JSONVar myObject, String key) {
+  if (JSON.typeof(myObject) == "undefined") {
+    Serial.println("Parsing input failed!");
+    return "";
+  }
+  
+  JSONVar value = myObject[key];
+
+  return JSON.stringify(value);
+}
+
+/*
+ * Sends a https post request containing the container weight to the api handle specified.
+ * @param serverName URL of the server including the handle.
+ * @param weight the weight obtained by the container.
+ * @return the server response containing the new container status as a string.
+ */
 String httpsPOSTRequest(const char* serverName, int weight){
   WiFiClientSecure *client = new WiFiClientSecure;
   String payload = "{}";
   if(client) {
+    //insecure because https but no certificate is used.
     client->setInsecure();
     HTTPClient https;
     
@@ -127,8 +170,6 @@ String httpsPOSTRequest(const char* serverName, int weight){
     char buf[bufSize];
     snprintf(buf, bufSize, "{\"weight\":\"%d\"}", weight);
     
-    //TODO INSERT ACTUAL WEIGHT
-    //String httpsRequestData = "{\"weight\":\"10\"}";
     String httpsRequestData = buf;
     int httpsResponseCode = https.POST(httpsRequestData);
 
@@ -146,12 +187,14 @@ String httpsPOSTRequest(const char* serverName, int weight){
   return payload;
 }
 
-//https Get Request
-//this request retrieves the current status of the container
+/*
+ * Sends a https get request to the server to obtain the current status of the container.
+ * @param the URL of the server including the handle.
+ * @return the current status of the container as a string.
+ */
 String httpGETRequest(const char* serverName) {
   WiFiClientSecure *client = new WiFiClientSecure;
   if(client) {
-    // set secure client without certificate
     client->setInsecure();
     HTTPClient https;
     https.begin(*client, serverName);
@@ -177,8 +220,10 @@ String httpGETRequest(const char* serverName) {
   }
 }
 
-//turns all LEDs off except one specified
-//@param led is the pin number of the LED to turn on.
+/*
+ * Turns all LEDs off except the one specified by the 'led' param.
+ * @param led is the pin number of the LED to turn on.
+ */
 void switchToLED(int led)
 {
   //so fast won't even notice all were off.
@@ -200,66 +245,70 @@ void switchToLED(int led)
   }
 }
 
-//sets the lock to the lock status provided
-//@param lock lo
+/*
+ * Sets the lock to the lock status provided.
+ * @param lock the status of the lock.
+ */
 void setLock(enum Lock lock)
 {
   servo.write(lock);
 }
 
+/*
+ * Writes the provided message to the OLED.
+ * @param message the message to display on the OLED.
+ */
 void setWriteOLED(String message)
 {
   display.clearDisplay();
   display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(0, 10);
+  
   // Display static text
   display.println(message);
-  
-  //print cookies left to take.
-  if(g_status == UNDERLIMIT)
-  {
-    display.setTextSize(1);
-    display.print("cookies left to take: ");
-    display.println(cookiesLeft);
-  }
-
   display.display();
 }
 
-//set container status and update
-//container hardware accordingly
+/*
+ * Set the container status and update the container hardware accordingly.
+ * @param stat the status to assign to the container.
+ */
 void setStatus(enum Status stat)
 {
   switch(stat){
     case OVERLIMIT:
-      if(true){
-        g_status = OVERLIMIT;
-        g_oldStat = OVERLIMIT;
-        switchToLED(LED_RED);
-        setLock(LOCK);
-        setWriteOLED("Overlimit\nContainer Locked!");
-      }
+      g_status = OVERLIMIT;
+      g_oldStat = OVERLIMIT;
+      switchToLED(LED_RED);
+      setLock(LOCK);
+      setWriteOLED("Unlocks on\n" + timer.substring(1,9) + "\n" + timer.substring(11,18));
       break;
     case UNDERLIMIT:
-      if(true){
-        g_status = UNDERLIMIT;
-        g_oldStat = UNDERLIMIT;
-        switchToLED(LED_GREEN);
-        setLock(UNLOCK);
-        setWriteOLED("Underlimit\nWell Done!");
-      }
+      g_status = UNDERLIMIT;
+      g_oldStat = UNDERLIMIT;
+      switchToLED(LED_GREEN);
+      setLock(UNLOCK);
+      
+      //construct string
+      int bufSize = 100;
+      char message[bufSize];
+      snprintf(message, bufSize, "Underlimit\nWell Done!\nCan take %d", cookiesLeft);
+      
+      //set OLED to message
+      setWriteOLED(message);
       break;
     case WAIT:
-      if(true) {
-        g_status = WAIT;
-        switchToLED(LED_BLUE);
-        setWriteOLED("Waiting...");
-      }
+      g_status = WAIT;
+      switchToLED(LED_BLUE);
+      setWriteOLED("Waiting...");
       break;
   }
 }
 
+/*
+ * Function that runs when ESP32 first boots up.
+ */
 void setup() {
   Serial.begin(115200);
 
@@ -281,18 +330,17 @@ void setup() {
 
   //calibrate 
   scale.set_scale(CALIBRATION_FACTOR);
-  scale.tare();               // reset the scale to 0
+  //reset scale to 0.
+  scale.tare(); 
 
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
-  //pinMode(SWITCH_PIN, INPUT);
   digitalWrite(LED_BUILTIN, LOW);
   digitalWrite(LED_RED, LOW);
   digitalWrite(LED_BLUE, LOW);
   digitalWrite(LED_GREEN, LOW);
-  
   
   //set up server
   WiFi.mode(WIFI_STA);
@@ -314,8 +362,9 @@ void setup() {
   //retrieve data from backend (cloud) set accordingly.
   String response = httpGETRequest(statusURL);
   Serial.println(response);
-  enum Status initialStatus = getValueFromJSON(response, "lid_status");
-  setStatus(initialStatus);
+  
+  JSONVar json = responseToJSON(response);
+  updateContainerFromJSON(json);
 
   //if lid currently open
   if(digitalRead(SWITCH_PIN)){
@@ -325,11 +374,16 @@ void setup() {
   delay(10);
 }
 
+/*
+ * Function that loops forever. Runs after setup function.
+ */
 void loop() {
   static int oldWeight, weight;
+
+  //lid just opened
   if(lever.getSingleDebouncedRelease())
   {
-    //scale
+    //if scale not ready wait.
     if (scale.wait_ready_timeout(200)) {
       oldWeight = round(scale.get_units());
       Serial.print("previous weight: ");
@@ -338,25 +392,30 @@ void loop() {
     else {
       Serial.println("ERROR: HX711 not found.");
     }
-    
+
     setStatus(WAIT);
-    
+
+    //lid just closed
   } else if(lever.getSingleDebouncedPress()){
     if (scale.wait_ready_timeout(200)) {
       weight = round(scale.get_units());
       Serial.print("new weight: ");
       Serial.println(weight);
+      
       int weightChange = weight - oldWeight;
       
-      //if difference greater than 3 grams
+      //if difference greater than 3 grams (to account for drift)
       if (abs(weightChange) > 3){
-          String response = httpsPOSTRequest(uploadWeightURL, weight);
-          Serial.println(response);
-          enum Status newStatus = getValueFromJSON(response, "lid_status");
-          
-          setStatus(newStatus);
+        setWriteOLED("Please\nWait...");
+        
+        //send current weight to container
+        String response = httpsPOSTRequest(uploadWeightURL, weight);
+        Serial.println(response);
+        
+        JSONVar json = responseToJSON(response);
+        updateContainerFromJSON(json);
       } else {
-        //if no change to weight
+        //if no change to weight set to old status.
         setStatus(g_oldStat);
       }
     } else {
