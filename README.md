@@ -38,14 +38,39 @@ Smart Cookie Jar is an IoT-based snack monitoring system designed to help users 
 ├── README.md # Project overview and instructions
 └── requirements.txt # Python dependency list
 ```
-## How to setup the server
-By using Render to set up the server.
 
-Using these commands to deploy the server on cloud
+## How to setup the server
+We use Render — a modern cloud platform that allows you to easily host web applications, APIs, and static websites with simple Git integration and automatic deployments.
+
+This project’s Flask server is deployed on Render to make it accessible from the web.
+
+### Steps to Deploy on Render
+#### Push the Project to GitHub
+Make sure your Flask project is pushed to a GitHub repository. Render pulls directly from GitHub for deployment.
+Prepare Required Files
+
+Ensure project includes:
+app.py — Your main Flask application.
+requirements.txt — Python dependencies list.
+Procfile — (Optional but recommended) Specifies the startup command.
+(Optional) render.yaml — For Infrastructure as Code (IaC) deployments.
+#### Create a Render Web Service
+Go to https://render.com
+Click "New" > "Web Service"
+Connect GitHub account and select the target repository
+Fill in the required fields:
+Build Command:
 ```command
 pip install -r requirements.txt
+```
+Start Command:
+```command
 gunicorn app:app
 ```
+- Runtime: Python.
+- Environment: Auto-detected or set as needed.
+- Wait for Build and Deployment.
+- Once the build process completes, Flask server will be live on a public URL provided by Render.
 
 ## Features
 - Set daily cookies consumption amount
