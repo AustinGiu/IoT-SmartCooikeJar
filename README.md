@@ -14,6 +14,8 @@ This project is conducted in a group of 3.
 ## Project Overview
 Smart Cookie Jar is an IoT-based snack monitoring system designed to help users manage their daily snack intake. The system uses an ESP32 microcontroller to detect snack removal via a load cell and sends this data to a Flask-based server. The server logs snack consumption, tracks calories and sugar, and enforces a user-defined daily snack limit by activating a locking mechanism when the limit is reached. Additional features include a refill reminder, OLED display with lock status and remaining snacks, red and green LEDs for visual status indication, and a web dashboard that provides snacking analytics such as peak snacking times and nutritional trends. The system is designed for a single user and emphasizes low power consumption, simplicity, and clear user feedback.
 
+## Table of Contents 
+
 ## Features
 - Set daily cookies consumption amount
 - Auto lock when hitting the limit
