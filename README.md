@@ -16,6 +16,37 @@ Smart Cookie Jar is an IoT-based snack monitoring system designed to help users 
 
 ## Table of Contents 
 
+```text
+│Root
+│ ├── Hardwarecode/ # script files for ESP32
+│ ├── instance/ # Runtime files
+│ └── snacklog.db # SQLite3 database
+│ ├── routes/ # Flask routing modules
+│ ├── __init__.py # Blueprint setup
+│ ├── api_routes.py # API endpoints for ESP32 and frontend
+│ └── html_routes.py # Renders HTML pages
+│ ├── static/ # Static frontend files
+│ ├── css/ │ │ ├── styles_past.css # Styles for past snack logs
+│ │ └── styles_today.css # Styles for today's snack summary
+│ └── js/
+│ ├── script_p.js # JS for past data page
+│ └── script.js # JS for today's data interaction
+│ ├── templates/ # Jinja2 HTML templates
+│ ├── .gitignore # Files to ignore in version control
+├── app.py # Main Flask application
+├── models.py # SQLAlchemy database model
+├── README.md # Project overview and instructions
+└── requirements.txt # Python dependency list
+```
+## How to setup the server
+By using Render to set up the server.
+
+Using these commands to deploy the server on cloud
+```command
+pip install -r requirements.txt
+gunicorn app:app
+```
+
 ## Features
 - Set daily cookies consumption amount
 - Auto lock when hitting the limit
